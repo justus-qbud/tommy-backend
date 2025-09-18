@@ -8,7 +8,6 @@ import redis
 
 
 def create_redis_client():
-    """Safely create Redis client, return None if unavailable"""
     try:
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
         client = redis.Redis.from_url(redis_url)
