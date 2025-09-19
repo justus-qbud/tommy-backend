@@ -1,6 +1,7 @@
 import os
 
 import redis
+from flask import request
 from flask_limiter import Limiter
 
 
@@ -15,6 +16,7 @@ def create_redis_for_limiter():
 
 
 LIMITER = Limiter(
+    key_func=lambda: request.remote_addr,
     storage_uri=os.getenv("REDIS_URL", "redis://localhost:6379/0") if create_redis_for_limiter() else "memory://",
     storage_options={"socket_connect_timeout": 30},
     strategy="fixed-window",
