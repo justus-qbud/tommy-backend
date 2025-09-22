@@ -9,12 +9,26 @@ class ParserRules:
         parser_dates = ParserDates()
         return parser_dates.parse(user_query)
 
-    def parse(self, user_query: str) -> tuple[dict, str] | None:
+    def _parse_accommodation_groups(self, user_query: str) -> list[str] | None:
+        parser_accommodation_groups = ParserAccommodationGroups()
+        return parser_accommodation_groups.parse(user_query)
+
+    def parse(self, user_query: str, catalog_filters: dict) -> tuple[dict, str] | None:
         parse = {}
         parse_dates, user_query = self._parse_dates(user_query)
         if parse_dates:
             parse["dates"] = parse_dates
-        return parse, user_query
+        parse_accommodation_groups, user_query = self._parse_accommodation_groups(user_query)
+        if parse_accommodation_groups:
+            accommodation_groups = []
+            catalog_filters_accommodation_groups = catalog_filters.get("accommodation_groups", dict())
+            for accommodation_group_text in parse_accommodation_groups:
+                for key, item in catalog_filters_accommodation_groups.items():
+                    if accommodation_group_text in item.lower():
+                        accommodation_groups.append(key)
+            if accommodation_groups:
+                parse["accommodation_groups"] = accommodation_groups
+        return parse, user_query.strip()
 
 
 class ParserDates:
@@ -126,3 +140,22 @@ class ParserDates:
             return {"start": start_date, "end": end_date}, text
 
         return None, text
+
+
+class ParserAccommodationGroups:
+
+    def parse(self, text, remove_from_text=True):
+        accommodation_groups_texts = []
+        for substring in ["kamperen", "huren"]:
+            if substring in text:
+                accommodation_groups_texts.append(substring)
+                if remove_from_text:
+                    text = text.replace(substring, "")
+                break
+        else:
+            if "huisje" in text:
+                accommodation_groups_texts.append("huren")
+                if remove_from_text:
+                    text = text.replace("huisje", "")
+        return accommodation_groups_texts, text
+
