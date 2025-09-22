@@ -12,14 +12,14 @@ class ParserAI:
         # Example 1
         Query: "3 volwassenen"
         Output: {
-            "age_categories": {"Volwassenen" 3}
+            "age_categories": {"19834": 3}
         }
         # Example 2
         Query: "huisje voor 2 volwassenen van 30 en 35 in januari"  
         Output:
         {
-            "accommodation-groups": ["huren"]
-            "age_categories": {"Volwassenen 25+": 2},
+            "accommodation-groups": ["98235"]
+            "age_categories": {"15325": 2},
             "date": {
                 "start": "2019-01-01",
                 "end": "2019-01-31"

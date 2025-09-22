@@ -19,13 +19,26 @@ class Catalog(Resource):
         return catalog_id == "219b2fc6-d2e0-42e9-a670-848124341c0f"
 
     @staticmethod
-    def _extract_language_from_metadata_item(metadata_item, language: str = "nl"):
-        options = []
+    def extract_language_from_metadata_item_name(metadata_item, language: str = "nl") -> dict:
+        options = {}
         for metadata_option in metadata_item:
             for language_item in metadata_option.get("name"):
                 if language_item.get("language") == language:
-                    options.append(language_item.get("value"))
+                    options[metadata_option.get("id")] = language_item.get("value")
                 break
+        return options
+
+    @staticmethod
+    def extract_language_from_metadata_item(metadata_item: list[dict], metadata_keys: list, language: str = "nl") -> dict[int, dict]:
+        options = {}
+        for metadata_option in metadata_item:
+            option = {}
+            for key in metadata_keys:
+                for language_item in metadata_option.get(key):
+                    if language_item.get("language") == language:
+                        option[key] = language_item.get("value")
+                    break
+            options[metadata_option.get("id")] = option
         return options
 
     @redis_cache("catalog:{catalog_id}:filters", ex=3600)
@@ -36,7 +49,7 @@ class Catalog(Resource):
         catalog_filters = {}
         if tommy_metadata:
             for key in tommy_metadata:
-                catalog_filters[key] = self._extract_language_from_metadata_item(tommy_metadata[key])
+                catalog_filters[key] = self.extract_language_from_metadata_item_name(tommy_metadata[key])
         return catalog_filters
 
     def get(self, catalog_id):
@@ -58,8 +71,6 @@ class CatalogSearch(Resource):
         r"\b(?P<jan>jan(uar[iy]?|vier))|(?P<feb>feb(ruar[iy]?|braio))|(?P<mar>maa?r(zo?|s|t)|märz)|(?P<apr>apr(il[e]?))|(?P<may>ma[iy]|maggio|mei)|(?P<jun>jun[ei]|giu[gn]no?)|(?P<jul>jul(y|i[oa]?))|(?P<aug>au?g(ust(us|o)?)?|août|aout)|(?P<sep>sep(tember|tembre)?)|(?P<oct>o[ck]t(ober|obre)?)|(?P<nov>nov(ember|embre)?)|(?P<dec>de[cz](ember|embre|icembre)?)\b"
     )
 
-
-
     @staticmethod
     def _validate_user_query(user_query):
         return user_query != "" and 100 > len(user_query) >= 5
@@ -77,6 +88,31 @@ class CatalogSearch(Resource):
         user_query = self.REGEX_MONTH_PATTERN.sub(get_month, user_query)
         user_query = self.REGEX_DOUBLE_SPACES.sub(" ", user_query)
         return user_query
+
+    @staticmethod
+    def get_catalog_results_from_tommy(
+        arrival_date: str,
+        departure_date: str,
+        age_categories: dict | None,
+        accommodation_groups: list[str] | None = None,
+    ) -> list:
+        if not arrival_date or not departure_date or not age_categories:
+            return []
+        client = TommyClient(os.getenv("TOMMY_API_KEY_TEMP"))
+        availability = client.get_availability(
+            arrival_date=arrival_date,
+            departure_date=departure_date,
+            age_categories=age_categories,
+            accommodation_groups="|".join(accommodation_groups) if accommodation_groups else None,
+        )
+        return availability or []
+
+    @staticmethod
+    def get_accommodations_from_tommy() -> dict:
+        client = TommyClient(os.getenv("TOMMY_API_KEY_TEMP"))
+        tommy_accommodations = client.get_accommodations()
+        accommodations = Catalog.extract_language_from_metadata_item(tommy_accommodations, ["name", "url"])
+        return accommodations or dict()
 
     @staticmethod
     @redis_cache("catalog:{catalog_id}:query:{user_query}:parse", ex=3600)
@@ -98,12 +134,16 @@ class CatalogSearch(Resource):
         user_query = self._sanitize_user_query(user_query)
 
         catalog_filters = Catalog().get_catalog_filters_from_tommy(catalog_id)
+        accommodations = self.get_accommodations_from_tommy()
         parse = self._parse_user_query(catalog_id, user_query, catalog_filters)
+        results = self.get_catalog_results_from_tommy(
+            parse.get("dates", {}).get("start"),
+            parse.get("dates", {}).get("end"),
+            parse.get("age_categories"),
+            parse.get("accommodations"),
+        )
+        for result in results:
+            if result.get("id") in accommodations:
+                result.update(accommodations[result.get("id")])
 
-        try:
-            return TommyResponse.success(data={
-                "parse": parse,
-                "results": []
-            })
-        except (json.decoder.JSONDecodeError, TypeError):
-            return TommyErrors.unprocessable_entity()
+        return TommyResponse.success(data={"parse": parse, "results": results})

@@ -1,3 +1,6 @@
+import json
+from datetime import datetime, timedelta
+
 import requests
 
 
@@ -30,13 +33,61 @@ class TommyClient:
                         endpoint: str,
                         search_params: dict | None =None) -> dict | None:
         headers = self._get_headers()
-        response = requests.get(f"{self.BASE_URL}/{endpoint}", headers=headers, params=search_params)
+        response = requests.get(f"{self.BASE_URL}/{endpoint}", headers=headers, params=search_params, timeout=15)
         if response.status_code == 200:
             response_json = response.json().get("data")
-            return self._standardize_response_keys(response_json)
+            if isinstance(response_json, dict):
+                return self._standardize_response_keys(response_json)
+            return response_json
         return None
 
-    def get_metadata(self):
-        return self._get_from_tommy("/widget/metadata", search_params={
+    def get_metadata(self) -> dict | None:
+        return self._get_from_tommy("widget/metadata", search_params={
             "data": "age-categories|accommodation-groups"
         })
+
+    def get_accommodations(self) -> dict | None:
+        metadata = self._get_from_tommy("widget/metadata", search_params={"data": "accommodations"})
+        if metadata:
+            return metadata.get("accommodations")
+        return None
+
+    def get_availability(self,
+                         arrival_date: str,
+                         departure_date: str,
+                         age_categories: str | None,
+                         accommodation_groups: str | None = None) -> dict | None:
+        def expand_date_ranges(params):
+            fmt = "%Y-%m-%d"
+            for key in ["date-from", "date-till"]:
+                ranges = []
+                if key in params:
+                    date = datetime.strptime(params[key], fmt)
+                    prev_day = (date - timedelta(1)).strftime(fmt)
+                    next_day = (date + timedelta(1)).strftime(fmt)
+                    ranges.extend([prev_day, params[key], next_day])
+                params[key] = "|".join(ranges)
+            return params
+
+        params = {"date-from": arrival_date, "date-till": departure_date}
+        params = expand_date_ranges(params)
+
+        if accommodation_groups:
+            params["accommodation-group"] = ",".join(accommodation_groups)
+
+        if age_categories:
+            try:
+                age_categories_params = []
+                for age_category, pax in age_categories.items():
+                    age_categories_params[age_category] = int(age_category["id"])
+                params["age-category"] = json.dumps(age_categories)
+            except (ValueError, TypeError, json.JSONDecodeError):
+                pass
+        else:
+            return None
+
+        accommodations = self._get_from_tommy("widget/search", params)
+        if accommodations:
+            return accommodations
+
+        return None
