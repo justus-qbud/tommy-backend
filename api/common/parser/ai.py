@@ -15,14 +15,14 @@ class ParserAI:
             "age_categories": {"19834": 3}
         }
         # Example 2
-        Query: "huisje voor 2 volwassenen van 30 en 35 in januari"  
+        Query: "huisje voor 2 volwassenen van 30 en 35, 3 tot 12 jan"  
         Output:
         {
             "accommodation-groups": ["98235"]
             "age_categories": {"15325": 2},
-            "date": {
-                "start": "2019-01-01",
-                "end": "2019-01-31"
+            "dates": {
+                "start": "2026-01-03",
+                "end": "2026-01-12"
             }
         }
         Besides a "date" range, the following filters are available:
