@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import unicodedata
 
 from flask import request
 from flask_restful import Resource
@@ -84,7 +85,13 @@ class CatalogSearch(Resource):
                     return month
             return match.group(0)
 
+        def remove_accents(text):
+            normalized = unicodedata.normalize("NFD", text)
+            ascii_text = ''.join(c for c in normalized if unicodedata.category(c) != "Mn")
+            return ascii_text
+
         user_query = user_query.lower().strip()
+        user_query = remove_accents(user_query)
         user_query = self.REGEX_INVALID_CHARS.sub("", user_query)
         user_query = self.REGEX_MONTH_PATTERN.sub(get_month, user_query)
         user_query = self.REGEX_DOUBLE_SPACES.sub(" ", user_query)
@@ -113,6 +120,8 @@ class CatalogSearch(Resource):
         client = TommyClient(os.getenv("TOMMY_API_KEY_TEMP"))
         tommy_accommodations = client.get_accommodations()
         accommodations = Catalog.extract_language_from_metadata_item(tommy_accommodations, ["name", "url"])
+        for accommodation in tommy_accommodations:
+            accommodations[accommodation.get("id")]["image_url"] = accommodation.get("images" , [{}])[0].get("original")
         return accommodations or dict()
 
     @staticmethod

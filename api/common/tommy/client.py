@@ -6,7 +6,7 @@ import requests
 
 class TommyClient:
 
-    BASE_URL = "https://public.tommytest.nl"
+    BASE_URL = "https://public.tommbookingsupport.nl"
     HEADERS = {
         "Accept": "application/json",
         "Content-Type": "application/json",
