@@ -90,8 +90,27 @@ class CatalogSearch(Resource):
             ascii_text = ''.join(c for c in normalized if unicodedata.category(c) != "Mn")
             return ascii_text
 
+        def replace_number_words(text):
+            """Replace number words (1-10) with digits in English, German, and Dutch."""
+
+            word_to_number = {
+                # English
+                "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+                "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+                # German
+                "eins": "1", "zwei": "2", "drei": "3", "vier": "4", "fünf": "5",
+                "sechs": "6", "sieben": "7", "acht": "8", "neun": "9", "zehn": "10",
+                # Dutch
+                "een": "1", "twee": "2", "drie": "3", "vier": "4", "vijf": "5",
+                "zes": "6", "zeven": "7", "acht": "8", "negen": "9", "tien": "10"
+            }
+
+            pattern = r"\b(" + "|".join(word_to_number.keys()) + r")\b"
+            return re.sub(pattern, lambda m: word_to_number[m.group(1).lower()], text)
+
         user_query = user_query.lower().strip()
         user_query = remove_accents(user_query)
+        user_query = replace_number_words(user_query)
         user_query = self.REGEX_INVALID_CHARS.sub("", user_query)
         user_query = self.REGEX_MONTH_PATTERN.sub(get_month, user_query)
         user_query = self.REGEX_DOUBLE_SPACES.sub(" ", user_query)
@@ -119,9 +138,9 @@ class CatalogSearch(Resource):
     def get_accommodations_from_tommy() -> dict:
         client = TommyClient(os.getenv("TOMMY_API_KEY_TEMP"))
         tommy_accommodations = client.get_accommodations()
-        accommodations = Catalog.extract_language_from_metadata_item(tommy_accommodations, ["name", "url"])
+        accommodations = Catalog.extract_language_from_metadata_item(tommy_accommodations, ["name", "description", "url"])
         for accommodation in tommy_accommodations:
-            accommodations[accommodation.get("id")]["image_url"] = accommodation.get("images" , [{}])[0].get("original")
+            accommodations[accommodation.get("id")]["image_url"] = accommodation.get("images" , [{}])[0].get("url")
         return accommodations or dict()
 
     @staticmethod

@@ -13,6 +13,10 @@ class ParserRules:
         parser_accommodation_groups = ParserAccommodationGroups()
         return parser_accommodation_groups.parse(user_query)
 
+    def _parse_age_categories(self, user_query: str) -> list[str] | None:
+        parser_accommodation_groups = ParserAgeCategories()
+        return parser_accommodation_groups.parse(user_query)
+
     def parse(self, user_query: str, catalog_filters: dict) -> tuple[dict, str] | None:
         parse = {}
         parse_dates, user_query = self._parse_dates(user_query)
