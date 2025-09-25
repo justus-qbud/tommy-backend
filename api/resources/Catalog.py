@@ -68,7 +68,7 @@ class CatalogSearch(Resource):
 
     REGEX_ALPHANUMERIC = re.compile(r"[a-z\d]")
     REGEX_DOUBLE_SPACES = re.compile(r"\s{2,}")
-    REGEX_INVALID_CHARS = re.compile(r"[^A-Za-z0-9,.\-/\s]+")
+    REGEX_INVALID_CHARS = re.compile(r"[^a-z\d.\-/\s]+")
     REGEX_MONTH_PATTERN = re.compile(
         r"\b(?P<jan>jan(uar[iy]?|vier))|(?P<feb>feb(ruar[iy]?|braio))|(?P<mar>maa?r(zo?|s|t)|märz)|(?P<apr>apr(il[e]?))|(?P<may>ma[iy]|maggio|mei)|(?P<jun>jun[ei]|giu[gn]no?)|(?P<jul>jul(y|i[oa]?))|(?P<aug>au?g(ust(us|o)?)?|août|aout)|(?P<sep>sep(tember|tembre)?)|(?P<oct>o[ck]t(ober|obre)?)|(?P<nov>nov(ember|embre)?)|(?P<dec>de[cz](ember|embre|icembre)?)\b"
     )
@@ -148,7 +148,10 @@ class CatalogSearch(Resource):
     def _parse_user_query(catalog_id, user_query, catalog_filters) -> dict:
         parser_rules = ParserRules()
         parse, user_query = parser_rules.parse(user_query, catalog_filters)
-        if user_query and CatalogSearch.REGEX_ALPHANUMERIC.search(user_query) is not None:
+        if len(parse) == 3:
+            return parse
+
+        if user_query and CatalogSearch.REGEX_ALPHANUMERIC.search(user_query) is not None and len(user_query) >= 5:
             parser_ai = ParserAI()
             parse_ai = parser_ai.parse(user_query, json.dumps(catalog_filters), catalog_id)
             for key in parse_ai:

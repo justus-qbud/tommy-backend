@@ -9,11 +9,11 @@ class ParserRules:
         parser_dates = ParserDates()
         return parser_dates.parse(user_query)
 
-    def _parse_accommodation_groups(self, user_query: str) -> list[str] | None:
+    def _parse_accommodation_groups(self, user_query: str) -> tuple[list[str], str]:
         parser_accommodation_groups = ParserAccommodationGroups()
         return parser_accommodation_groups.parse(user_query)
 
-    def _parse_age_categories(self, user_query: str) -> list[str] | None:
+    def _parse_age_categories(self, user_query: str) -> tuple[dict[str, int], str]:
         parser_accommodation_groups = ParserAgeCategories()
         return parser_accommodation_groups.parse(user_query)
 
@@ -22,6 +22,7 @@ class ParserRules:
         parse_dates, user_query = self._parse_dates(user_query)
         if parse_dates:
             parse["dates"] = parse_dates
+
         parse_accommodation_groups, user_query = self._parse_accommodation_groups(user_query)
         if parse_accommodation_groups:
             accommodation_groups = []
@@ -32,6 +33,20 @@ class ParserRules:
                         accommodation_groups.append(key)
             if accommodation_groups:
                 parse["accommodation_groups"] = accommodation_groups
+
+        parse_age_categories, user_query = self._parse_age_categories(user_query)
+        if parse_age_categories:
+            age_categories = {}
+            catalog_filters_age_categories = catalog_filters.get("age_categories", dict())
+            for parse_age_category_text, age_category_num in parse_age_categories.items():
+                matches = {id_: age_category_text for id_, age_category_text in catalog_filters_age_categories.items() if parse_age_category_text in age_category_text.lower()}
+                if len(matches) == 1:
+                    age_categories[list(matches.keys())[0]] = age_category_num
+
+            if age_categories:
+                parse["age_categories"] = age_categories
+
+        print(parse)
         return parse, user_query.strip()
 
 
@@ -148,7 +163,7 @@ class ParserDates:
 
 class ParserAccommodationGroups:
 
-    def parse(self, text, remove_from_text=True):
+    def parse(self, text, remove_from_text=True) -> tuple[list[str], str]:
         accommodation_groups_texts = []
         for substring in ["kamperen", "huren"]:
             if substring in text:
@@ -163,3 +178,43 @@ class ParserAccommodationGroups:
                     text = text.replace("huisje", "")
         return accommodation_groups_texts, text
 
+
+class ParserAgeCategories:
+    # Regex patterns for different age categories in multiple languages
+    PATTERNS = {
+        "volwassenen": re.compile(
+            r"\b(\d{1,2})\s+(volwassen(?:en?)?|adults?|erwachsene?)\b"
+        ),
+        "baby": re.compile(
+            r"\b(\d{1,2})\s+(baby's?|babies|babys?)\b"
+        ),
+        "16+": re.compile(
+            r"\b(\d{1,2})\s+(16\+|zestien\+|sixteen\+|sechzehn\+)\b"
+        ),
+        "18-15": re.compile(
+            r"\b(\d{1,2})\s+(18-15|achttien-vijftien|eighteen-fifteen|achtzehn-fünfzehn)\b"
+        ),
+        "25+": re.compile(
+            r"\b(\d{1,2})\s+(25\+|vijfentwintig\+|twenty-five\+|fünfundzwanzig\+)\b"
+        ),
+        "kinderen": re.compile(
+            r"\b(\d{1,2})\s+(kinder(?:en)?|children?|child|kids?)\b"
+        )
+    }
+
+    def parse(self, text, remove_from_text=True) -> tuple[dict[str, int], str]:
+        age_categories = {}
+        working_text = text
+
+        for dutch_category, pattern in self.PATTERNS.items():
+            matches = list(pattern.finditer(working_text))
+
+            for match in reversed(matches):
+                count = int(match.group(1))
+
+                if dutch_category in age_categories:
+                    age_categories[dutch_category] += count
+                else:
+                    age_categories[dutch_category] = count
+
+        return age_categories, working_text if remove_from_text else text
