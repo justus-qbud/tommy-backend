@@ -73,7 +73,7 @@ class TommyClient:
         params = expand_date_ranges(params)
 
         if accommodation_groups:
-            params["accommodation-group"] = ",".join(accommodation_groups)
+            params["accommodation-group"] = accommodation_groups
 
         if age_categories:
             try:

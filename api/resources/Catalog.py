@@ -121,7 +121,7 @@ class CatalogSearch(Resource):
         arrival_date: str,
         departure_date: str,
         age_categories: dict | None,
-        accommodation_groups: list[str] | None = None,
+        accommodation_groups: list[int | str] | None = None,
     ) -> list:
         if not arrival_date or not departure_date or not age_categories:
             return []
@@ -130,7 +130,7 @@ class CatalogSearch(Resource):
             arrival_date=arrival_date,
             departure_date=departure_date,
             age_categories=age_categories,
-            accommodation_groups="|".join(accommodation_groups) if accommodation_groups else None,
+            accommodation_groups=",".join([str(x) for x in accommodation_groups]) if accommodation_groups else None,
         )
         return availability or []
 
@@ -169,7 +169,7 @@ class CatalogSearch(Resource):
             parse.get("dates", {}).get("start"),
             parse.get("dates", {}).get("end"),
             parse.get("age_categories"),
-            parse.get("accommodations"),
+            parse.get("accommodation_groups"),
         )
         for result in results:
             if result.get("id") in accommodations:
