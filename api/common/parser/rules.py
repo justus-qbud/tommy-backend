@@ -46,7 +46,6 @@ class ParserRules:
             if age_categories:
                 parse["age_categories"] = age_categories
 
-        print(parse)
         return parse, user_query.strip()
 
 
@@ -162,21 +161,33 @@ class ParserDates:
 
 
 class ParserAccommodationGroups:
+    # Comprehensive regex patterns for accommodation groups
+    PATTERNS = {
+        "kamperen": r"\b(kamperen|camping|kampeerplek|campsite|campground|campen|campingplatz|zeltplatz)\b",
+        "huren": r"\b(huren|huisje|huuraccommodatie|rent|rental|cottage|holiday\s*home|mieten|ferienwohnung|ferienhaus)\b",
+        "accommodaties": r"\b(accommodaties|accommodatie|verblijven|accommodations?|lodgings?|unterkünfte|unterkunft|bleibe)\b",
+        "toeristenplaatsen": r"\b(toeristenplaatsen|toeristenplaats|tourist\s*spots?|touristenplätze|touristenplatz)\b"
+    }
 
     def parse(self, text, remove_from_text=True) -> tuple[list[str], str]:
         accommodation_groups_texts = []
-        for substring in ["kamperen", "huren"]:
-            if substring in text:
-                accommodation_groups_texts.append(substring)
+        working_text = text
+
+        compiled_patterns = {
+            dutch_group: re.compile(pattern, re.IGNORECASE)
+            for dutch_group, pattern in self.PATTERNS.items()
+        }
+
+        for dutch_group, pattern in compiled_patterns.items():
+            matches = list(pattern.finditer(working_text))
+
+            if matches:
+                accommodation_groups_texts.append(dutch_group)
                 if remove_from_text:
-                    text = text.replace(substring, "")
-                break
-        else:
-            if "huisje" in text:
-                accommodation_groups_texts.append("huren")
-                if remove_from_text:
-                    text = text.replace("huisje", "")
-        return accommodation_groups_texts, text
+                    for match in reversed(matches):
+                        working_text = working_text[:match.start()] + working_text[match.end():]
+
+        return accommodation_groups_texts, working_text if remove_from_text else text
 
 
 class ParserAgeCategories:

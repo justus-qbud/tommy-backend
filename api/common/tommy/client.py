@@ -43,7 +43,7 @@ class TommyClient:
 
     def get_metadata(self) -> dict | None:
         return self._get_from_tommy("widget/metadata", search_params={
-            "data": "age-categories|accommodation-groups"
+            "data": "age-categories|accommodation-groups|amenities"
         })
 
     def get_accommodations(self) -> dict | None:
@@ -55,8 +55,9 @@ class TommyClient:
     def get_availability(self,
                          arrival_date: str,
                          departure_date: str,
-                         age_categories: str | None,
-                         accommodation_groups: str | None = None) -> dict | None:
+                         age_categories: dict | None,
+                         accommodation_groups: str | None = None,
+                         amenities: dict | None = None) -> dict | None:
         def expand_date_ranges(params):
             fmt = "%Y-%m-%d"
             for key in ["date-from", "date-till"]:
@@ -85,6 +86,13 @@ class TommyClient:
                 pass
         else:
             return None
+
+        if amenities:
+            try:
+                amenities_params = json.dumps([{"id": x} for x in amenities])
+                params["amenities"] = amenities_params
+            except (ValueError, TypeError, json.JSONDecodeError):
+                pass
 
         accommodations = self._get_from_tommy("widget/search", params)
         if accommodations:

@@ -1,31 +1,44 @@
 import json
+from datetime import date
+from typing import Dict, Optional
 
 from openai import OpenAI
+from pydantic import BaseModel, Field
+
+
+
+class DateRange(BaseModel):
+    start: date = Field(description="Start date in YYYY-MM-DD format")
+    end: date = Field(description="End date in YYYY-MM-DD format")
+
+
+class SearchFilters(BaseModel):
+    accommodation_groups: Optional[list[str]] = Field(
+        None,
+        alias="accommodation-groups",
+        description="List of accommodation group IDs"
+    )
+    amenities: Optional[list[str]] = Field(
+        None,
+        alias="amenities",
+        description="List of amenity IDs"
+    )
+    age_categories: Optional[Dict[str, int]] = Field(
+        None,
+        description="Map of age category IDs to number of people"
+    )
+    dates: Optional[DateRange] = Field(
+        None,
+        description="Date range for availability"
+    )
 
 
 class ParserAI:
 
     MODEL_VERSION = "gpt-5-nano"
     SYSTEM_PROMPT = """
-        Based on the user query, extract filter options.
-        Return ONLY JSON. Exclude missing keys. 
-        # Example 1
-        Query: "3 volwassenen"
-        Output: {
-            "age_categories": {"19834": 3}
-        }
-        # Example 2
-        Query: "huisje voor 2 volwassenen van 30 en 35, 3 tot 12 jan"  
-        Output:
-        {
-            "accommodation-groups": ["98235"]
-            "age_categories": {"15325": 2},
-            "dates": {
-                "start": "2026-01-03",
-                "end": "2026-01-12"
-            }
-        }
-        Besides a "date" range, the following filters are available:
+        Based on user query, extract filter options. 
+        Besides "dates", the following filters are available:
     """
 
     def _get_system_prompt(self, filters: str):
@@ -34,16 +47,18 @@ class ParserAI:
     def parse(self, user_query: str, filters: str, catalog_id: str) -> dict:
         client = OpenAI()
         system_prompt = self._get_system_prompt(filters)
+        print(system_prompt)
         messages = [
             {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
             {"role": "user", "content": [{"type": "text", "text": user_query}]}
         ]
-        response = client.chat.completions.create(
+        response = client.chat.completions.parse(
             model=self.MODEL_VERSION,
             messages=messages,
             verbosity="low",
             reasoning_effort="minimal",
-            prompt_cache_key=catalog_id
+            prompt_cache_key=catalog_id,
+            response_format=SearchFilters
         )
         try:
             return json.loads(response.choices[0].message.content)

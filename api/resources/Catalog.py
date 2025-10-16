@@ -122,6 +122,7 @@ class CatalogSearch(Resource):
         departure_date: str,
         age_categories: dict | None,
         accommodation_groups: list[int | str] | None = None,
+        amenities: dict[str, str] | None = None,
     ) -> list:
         if not arrival_date or not departure_date or not age_categories:
             return []
@@ -131,6 +132,7 @@ class CatalogSearch(Resource):
             departure_date=departure_date,
             age_categories=age_categories,
             accommodation_groups=",".join([str(x) for x in accommodation_groups]) if accommodation_groups else None,
+            amenities=amenities
         )
         return availability or []
 
@@ -148,7 +150,7 @@ class CatalogSearch(Resource):
     def _parse_user_query(catalog_id, user_query, catalog_filters) -> dict:
         parser_rules = ParserRules()
         parse, user_query = parser_rules.parse(user_query, catalog_filters)
-        if len(parse) == 3:
+        if len(parse) == 3 and not catalog_filters.get("amenities"):
             return parse
 
         if user_query and CatalogSearch.REGEX_ALPHANUMERIC.search(user_query) is not None and len(user_query) >= 5:
@@ -173,6 +175,7 @@ class CatalogSearch(Resource):
             parse.get("dates", {}).get("end"),
             parse.get("age_categories"),
             parse.get("accommodation_groups"),
+            parse.get("amenities")
         )
         for result in results:
             if result.get("id") in accommodations:
