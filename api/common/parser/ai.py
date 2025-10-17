@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 
 
 class DateRange(BaseModel):
-    start: date = Field(description="Start date in YYYY-MM-DD format")
-    end: date = Field(description="End date in YYYY-MM-DD format")
+    start: date = Field(description="Start date in YYYY-MM-DD")
+    end: date = Field(description="End date in YYYY-MM-DD")
 
 
 class SearchFilters(BaseModel):
@@ -29,25 +29,25 @@ class SearchFilters(BaseModel):
     )
     dates: Optional[DateRange] = Field(
         None,
-        description="Date range for availability"
+        description="Date range. Infer from user query if necessary. A weekend runs from Friday to Monday."
     )
 
 
 class ParserAI:
 
-    MODEL_VERSION = "gpt-5-nano"
+    MODEL_VERSION = "gpt-5-mini"
     SYSTEM_PROMPT = """
         Based on user query, extract filter options. 
-        Besides "dates", the following filters are available:
+        Besides "dates" (today is '{current_date}'), the following filters are available:
     """
 
     def _get_system_prompt(self, filters: str):
-        return self.SYSTEM_PROMPT + filters
+        current_date = date.today()
+        return self.SYSTEM_PROMPT.format(current_date=current_date.isoformat()) + filters
 
     def parse(self, user_query: str, filters: str, catalog_id: str) -> dict:
         client = OpenAI()
         system_prompt = self._get_system_prompt(filters)
-        print(system_prompt)
         messages = [
             {"role": "system", "content": [{"type": "text", "text": system_prompt}]},
             {"role": "user", "content": [{"type": "text", "text": user_query}]}

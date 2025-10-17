@@ -2,6 +2,7 @@ import json
 import os
 import re
 import unicodedata
+from datetime import date
 
 from flask import request
 from flask_restful import Resource
@@ -150,7 +151,7 @@ class CatalogSearch(Resource):
     def _parse_user_query(catalog_id, user_query, catalog_filters) -> dict:
         parser_rules = ParserRules()
         parse, user_query = parser_rules.parse(user_query, catalog_filters)
-        if len(parse) == 3 and not catalog_filters.get("amenities"):
+        if not catalog_filters.get("amenities") and len(parse) == 3:
             return parse
 
         if user_query and CatalogSearch.REGEX_ALPHANUMERIC.search(user_query) is not None and len(user_query) >= 5:
@@ -159,6 +160,22 @@ class CatalogSearch(Resource):
             for key in parse_ai:
                 if key not in parse:
                     parse[key] = parse_ai[key]
+
+        # check if dates in past
+        if parse.get("dates"):
+            current_date = date.today().isoformat()
+            for key in ["start", "end"]:
+                if key in parse.get("dates"):
+                    if parse["dates"][key] < current_date:
+                        parse["error"] = "DATES_PAST"
+                        del parse["dates"]
+                        break
+
+        # ensure no Nones in parse
+        for key in list(parse.keys()):
+            if parse[key] is None:
+                del parse[key]
+
         return parse
 
     def get(self, catalog_id):
@@ -170,15 +187,17 @@ class CatalogSearch(Resource):
         catalog_filters = Catalog().get_catalog_filters_from_tommy(catalog_id)
         accommodations = self.get_accommodations_from_tommy()
         parse = self._parse_user_query(catalog_id, user_query, catalog_filters)
-        results = self.get_catalog_results_from_tommy(
-            parse.get("dates", {}).get("start"),
-            parse.get("dates", {}).get("end"),
-            parse.get("age_categories"),
-            parse.get("accommodation_groups"),
-            parse.get("amenities")
-        )
-        for result in results:
-            if result.get("id") in accommodations:
-                result.update(accommodations[result.get("id")])
+        results = None
+        if not parse.get("error"):
+            results = self.get_catalog_results_from_tommy(
+                parse.get("dates", {}).get("start"),
+                parse.get("dates", {}).get("end"),
+                parse.get("age_categories"),
+                parse.get("accommodation_groups"),
+                parse.get("amenities")
+            )
+            for result in results:
+                if result.get("id") in accommodations:
+                    result.update(accommodations[result.get("id")])
 
         return TommyResponse.success(data={"parse": parse, "results": results})
