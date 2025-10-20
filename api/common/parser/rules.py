@@ -133,22 +133,37 @@ class ParserDates:
         for match in re.finditer(self.RANGE_PATTERN, text.lower()):
             start_text, end_text = match.groups()
 
-            context_month = self.extract_month_from_text(end_text)
-            context_year = datetime.now().year
-
-            # Parse start date
-            start_date = self.parse_date(start_text, context_year, context_month)
-            if not start_date:
+            # First parse the end date to potentially get the year
+            end_date = self.parse_date(end_text, datetime.now().year, None)
+            if not end_date:
                 continue
 
-            # Extract context for end date
-            start_parts = start_date.split("-")
-            context_year = int(start_parts[0])
-            context_month = int(start_parts[1])
+            # Extract year and month from end date
+            end_parts = end_date.split("-")
+            end_year = int(end_parts[0])
+            context_month = int(end_parts[1])
 
-            # Parse end date with context
-            end_date = self.parse_date(end_text, context_year, context_month)
-            if not end_date:
+            # Check if end_text contains a 4-digit year
+            has_explicit_year = bool(re.search(r'\b\d{4}\b', end_text))
+
+            if has_explicit_year:
+                context_year = end_year
+            else:
+                # No explicit year - use current year but check if date is in the past
+                context_year = datetime.now().year
+                # Parse start date tentatively to check if it's in the past
+                temp_start = self.parse_date(start_text, context_year, context_month)
+                if temp_start:
+                    temp_start_date = datetime.strptime(temp_start, "%Y-%m-%d")
+                    # If the start date is in the past, assume next year
+                    if temp_start_date < datetime.now():
+                        context_year += 1
+                        # Re-parse end date with the new year
+                        end_date = self.parse_date(end_text, context_year, None)
+
+            # Now parse start date with the correct context
+            start_date = self.parse_date(start_text, context_year, context_month)
+            if not start_date:
                 continue
 
             if remove_from_text:
