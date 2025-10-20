@@ -68,6 +68,7 @@ class Catalog(Resource):
 class CatalogSearch(Resource):
 
     REGEX_ALPHANUMERIC = re.compile(r"[a-z\d]")
+    REGEX_CONSECUTIVE_CHARS = re.compile(r"(\D)\1{2,}|(\d)\1{3,}")
     REGEX_DOUBLE_SPACES = re.compile(r"\s{2,}")
     REGEX_INVALID_CHARS = re.compile(r"[^a-z\d.\-/\s]+")
     REGEX_MONTH_PATTERN = re.compile(
@@ -76,7 +77,10 @@ class CatalogSearch(Resource):
 
     @staticmethod
     def _validate_user_query(user_query):
-        return user_query != "" and 100 > len(user_query) >= 5
+        if len(user_query) <= 5 or len(user_query) > 100:
+            return False
+
+        return True
 
     def _sanitize_user_query(self, user_query):
         def get_month(match):
@@ -114,8 +118,9 @@ class CatalogSearch(Resource):
         user_query = replace_number_words(user_query)
         user_query = self.REGEX_INVALID_CHARS.sub("", user_query)
         user_query = self.REGEX_MONTH_PATTERN.sub(get_month, user_query)
+        user_query = self.REGEX_CONSECUTIVE_CHARS.sub("", user_query)
         user_query = self.REGEX_DOUBLE_SPACES.sub(" ", user_query)
-        return user_query
+        return user_query.strip()
 
     @staticmethod
     def get_catalog_results_from_tommy(
@@ -183,6 +188,10 @@ class CatalogSearch(Resource):
         if not Catalog.validate_catalog_id(catalog_id) or not self._validate_user_query(user_query):
             return TommyErrors.bad_request()
         user_query = self._sanitize_user_query(user_query)
+
+        # user query should pass after sanitization
+        if not self._validate_user_query(user_query):
+            return TommyErrors.bad_request()
 
         catalog_filters = Catalog().get_catalog_filters_from_tommy(catalog_id)
         accommodations = self.get_accommodations_from_tommy()
