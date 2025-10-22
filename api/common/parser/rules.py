@@ -172,6 +172,13 @@ class ParserDates:
 
             return {"start": start_date, "end": end_date}, text
 
+        # If no range found, try to parse as a single date
+        single_date = self.parse_date(text)
+        if single_date:
+            if remove_from_text:
+                text = ""  # or handle removal more carefully
+            return {"start": single_date, "end": single_date}, text
+
         return None, text
 
 

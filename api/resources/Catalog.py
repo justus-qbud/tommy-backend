@@ -4,6 +4,7 @@ import re
 import unicodedata
 from datetime import date
 
+from cerberus import Validator
 from flask import request
 from flask_restful import Resource
 
@@ -75,12 +76,54 @@ class CatalogSearch(Resource):
         r"\b(?P<jan>jan(uar[iy]?|vier))|(?P<feb>feb(ruar[iy]?|braio))|(?P<mar>maa?r(zo?|s|t)|märz)|(?P<apr>apr(il[e]?))|(?P<may>ma[iy]|maggio|mei)|(?P<jun>jun[ei]|giu[gn]no?)|(?P<jul>jul(y|i[oa]?))|(?P<aug>au?g(ust(us|o)?)?|août|aout)|(?P<sep>sep(tember|tembre)?)|(?P<oct>o[ck]t(ober|obre)?)|(?P<nov>nov(ember|embre)?)|(?P<dec>de[cz](ember|embre|icembre)?)\b"
     )
 
+    SCHEMA_USER_PARSE = {
+        "dates": {
+            "type": "dict",
+            "required": False,
+            "schema": {
+                "start": {
+                    "type": "string",
+                    "required": True,
+                    "regex": r"^\d{4}-\d{2}-\d{2}$"
+                },
+                "end": {
+                    "type": "string",
+                    "required": True,
+                    "regex": r"^\d{4}-\d{2}-\d{2}$"
+                }
+            }
+        },
+        "accommodation_groups": {
+            "type": "list",
+            "required": False,
+            "schema": {
+                "type": "integer"
+            }
+        },
+        "age_categories": {
+            "type": "dict",
+            "required": False,
+            "keysrules": {
+                "type": "string",
+                "regex": r"^\d+$"
+            },
+            "valuesrules": {
+                "type": "integer"
+            }
+        },
+    }
+
     @staticmethod
     def _validate_user_query(user_query):
-        if len(user_query) <= 5 or len(user_query) > 100:
+        if len(user_query) < 4 or len(user_query) > 100:
             return False
 
         return True
+
+    @staticmethod
+    def _validate_user_parse(user_parse):
+        validator = Validator()
+        return validator.validate(user_parse, CatalogSearch.SCHEMA_USER_PARSE)
 
     def _sanitize_user_query(self, user_query):
         def get_month(match):
@@ -167,14 +210,17 @@ class CatalogSearch(Resource):
                     parse[key] = parse_ai[key]
 
         # check if dates in past
-        if parse.get("dates"):
+        if dates := parse.get("dates"):
             current_date = date.today().isoformat()
             for key in ["start", "end"]:
-                if key in parse.get("dates"):
-                    if parse["dates"][key] < current_date:
+                if key in dates:
+                    if dates[key] < current_date:
                         parse["error"] = "DATES_PAST"
                         del parse["dates"]
                         break
+            if dates["start"] >= dates["end"]:
+                parse["error"] = "DATES_ORDER"
+                del parse["dates"]
 
         # ensure no Nones in parse
         for key in list(parse.keys()):
@@ -184,18 +230,33 @@ class CatalogSearch(Resource):
         return parse
 
     def get(self, catalog_id):
+        # validate, sanitize, and re-validate user query
         user_query = request.args.get("q")
         if not Catalog.validate_catalog_id(catalog_id) or not self._validate_user_query(user_query):
             return TommyErrors.bad_request()
         user_query = self._sanitize_user_query(user_query)
-
-        # user query should pass after sanitization
         if not self._validate_user_query(user_query):
             return TommyErrors.bad_request()
 
+        # validate parse
+        user_parse = {}
+        if request.args.get("parse"):
+            try:
+                user_parse = json.loads(request.args.get("parse"))
+                if user_parse and not self._validate_user_parse(user_parse):
+                    return TommyErrors.bad_request()
+            except (json.JSONDecodeError, TypeError):
+                user_parse = {}
+
+        # parse query
         catalog_filters = Catalog().get_catalog_filters_from_tommy(catalog_id)
         accommodations = self.get_accommodations_from_tommy()
         parse = self._parse_user_query(catalog_id, user_query, catalog_filters)
+
+        # add user parse
+        parse = parse | user_parse
+
+        # search results
         results = None
         if not parse.get("error"):
             results = self.get_catalog_results_from_tommy(
