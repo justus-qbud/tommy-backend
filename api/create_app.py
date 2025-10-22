@@ -37,8 +37,14 @@ def create_app():
     except OSError:
         pass
 
-    cors = CORS()
-    cors.init_app(app, supports_credentials=True)
+    # Configure CORS for widget embedding
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": "*"}},
+        methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type"],
+        supports_credentials=False
+    )
 
     @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit_exceeded(error):
