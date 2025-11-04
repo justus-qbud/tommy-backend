@@ -186,7 +186,7 @@ class ParserAccommodationGroups:
     # Comprehensive regex patterns for accommodation groups
     PATTERNS = {
         "kamperen": r"\b(kamperen|camping|kampeerplek|campsite|campground|campen|campingplatz|zeltplatz)\b",
-        "huren": r"\b(huren|huisje|huuraccommodatie|rent|rental|cottage|holiday\s*home|mieten|ferienwohnung|ferienhaus)\b",
+        "huren": r"\b(huren|(vakantie)?huis|huuraccommodatie|rent|rental|cottage|holiday\s*home|mieten|ferienwohnung|ferienhaus|chalet|bungalow|glampingtent)\b",
         "accommodaties": r"\b(accommodaties|accommodatie|verblijven|accommodations?|lodgings?|unterkünfte|unterkunft|bleibe)\b",
         "toeristenplaatsen": r"\b(toeristenplaatsen|toeristenplaats|tourist\s*spots?|touristenplätze|touristenplatz)\b"
     }
