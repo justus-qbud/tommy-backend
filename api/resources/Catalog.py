@@ -254,6 +254,9 @@ class CatalogSearch(Resource):
         parse = self._parse_user_query(catalog_id, user_query, catalog_filters)
 
         # add user parse
+        for key in parse:
+            if key in user_parse:
+                del user_parse[key]
         parse = parse | user_parse
 
         # search results
