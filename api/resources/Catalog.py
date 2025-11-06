@@ -114,7 +114,7 @@ class CatalogSearch(Resource):
         },
     }
 
-    STOPWORDS_NL = set(json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..\\data\\stopwords-nl.json"))))
+    STOPWORDS_NL = set(json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.join("..", "data", "stopwords-nl.json")))))
 
     @staticmethod
     def _validate_user_query(user_query):
