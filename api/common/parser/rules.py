@@ -1,6 +1,5 @@
-import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class ParserRules:
@@ -79,6 +78,8 @@ class ParserDates:
         "dec": 12, "december": 12, "dez": 12, "dezember": 12
     }
 
+    DURATION_PATTERN = r"(\d+)\s*(week|weeks|wk|wks|day|days|d)"
+
     def extract_month_from_text(self, text):
         """Extract month from text like '12 dec' or 'december 12'"""
         text = text.strip().lower()
@@ -87,6 +88,21 @@ class ParserDates:
         for month_name, month_num in self.MONTHS.items():
             if month_name in text:
                 return month_num
+        return None
+
+    def parse_duration_days(self, text):
+        """Convert duration text to number of days"""
+        match = re.search(self.DURATION_PATTERN, text.lower())
+        if not match:
+            return None
+
+        amount = int(match.group(1))
+        unit = match.group(2)
+
+        if unit.startswith('week') or unit.startswith('wk'):
+            return amount * 7
+        elif unit.startswith('day') or unit == 'd':
+            return amount
         return None
 
     def parse_date(self, text, context_year=None, context_month=None):
@@ -130,53 +146,75 @@ class ParserDates:
 
     def parse(self, text, remove_from_text=True):
         """Extract date ranges as [{"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}]"""
-        for match in re.finditer(self.RANGE_PATTERN, text.lower()):
-            start_text, end_text = match.groups()
 
-            # First parse the end date to potentially get the year
+        # First check for traditional range pattern
+        range_match = re.search(self.RANGE_PATTERN, text.lower())
+
+        if range_match:
+            start_text, end_text = range_match.groups()
+
             end_date = self.parse_date(end_text, datetime.now().year, None)
             if not end_date:
-                continue
-
-            # Extract year and month from end date
-            end_parts = end_date.split("-")
-            end_year = int(end_parts[0])
-            context_month = int(end_parts[1])
-
-            # Check if end_text contains a 4-digit year
-            has_explicit_year = bool(re.search(r'\b\d{4}\b', end_text))
-
-            if has_explicit_year:
-                context_year = end_year
+                pass
             else:
-                # No explicit year - use current year but check if date is in the past
-                context_year = datetime.now().year
-                # Parse start date tentatively to check if it's in the past
-                temp_start = self.parse_date(start_text, context_year, context_month)
-                if temp_start:
-                    temp_start_date = datetime.strptime(temp_start, "%Y-%m-%d")
-                    # If the start date is in the past, assume next year
-                    if temp_start_date < datetime.now():
-                        context_year += 1
-                        # Re-parse end date with the new year
-                        end_date = self.parse_date(end_text, context_year, None)
+                end_parts = end_date.split("-")
+                end_year = int(end_parts[0])
+                context_month = int(end_parts[1])
+                has_explicit_year = bool(re.search(r'\b\d{4}\b', end_text))
 
-            # Now parse start date with the correct context
-            start_date = self.parse_date(start_text, context_year, context_month)
-            if not start_date:
-                continue
+                if has_explicit_year:
+                    context_year = end_year
+                else:
+                    context_year = datetime.now().year
+                    temp_start = self.parse_date(start_text, context_year, context_month)
+                    if temp_start:
+                        temp_start_date = datetime.strptime(temp_start, "%Y-%m-%d")
+                        if temp_start_date < datetime.now():
+                            context_year += 1
+                            end_date = self.parse_date(end_text, context_year, None)
 
-            if remove_from_text:
-                text = text[:match.start()] + text[match.end():]
-                text = text.strip()
+                start_date = self.parse_date(start_text, context_year, context_month)
+                if not start_date:
+                    pass
+                else:
+                    if remove_from_text:
+                        text = text[:range_match.start()] + text[range_match.end():]
+                        text = text.strip()
+                    return {"start": start_date, "end": end_date}, text
 
-            return {"start": start_date, "end": end_date}, text
+        # Check for date + duration (either order)
+        duration_pattern = r"(?:(\d+\s+\w+)\s+(\d+\s*(?:week|weeks|wk|wks|day|days|d))|(\d+\s*(?:week|weeks|wk|wks|day|days|d))\s+(\d+\s+\w+))"
+        if duration_match := re.search(duration_pattern, text.lower()):
+            if duration_match.group(1):  # date duration
+                start_text = duration_match.group(1)
+                duration_text = duration_match.group(2)
+            else:  # duration date
+                start_text = duration_match.group(4)
+                duration_text = duration_match.group(3)
 
-        # If no range found, try to parse as a single date
+            start_date = self.parse_date(start_text)
+            duration_days = self.parse_duration_days(duration_text)
+
+            if start_date and duration_days:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                if start_dt < datetime.now():
+                    start_dt = start_dt.replace(year=start_dt.year + 1)
+                    start_date = start_dt.strftime("%Y-%m-%d")
+
+                end_dt = start_dt + timedelta(days=duration_days - 1)
+                end_date = end_dt.strftime("%Y-%m-%d")
+
+                if remove_from_text:
+                    text = text[:duration_match.start()] + text[duration_match.end():]
+                    text = text.strip()
+
+                return {"start": start_date, "end": end_date}, text
+
+        # Fall back to single date parsing
         single_date = self.parse_date(text)
         if single_date:
             if remove_from_text:
-                text = ""  # or handle removal more carefully
+                text = ""
             return {"start": single_date, "end": single_date}, text
 
         return None, text
@@ -205,9 +243,6 @@ class ParserAccommodationGroups:
 
             if matches:
                 accommodation_groups_texts.append(dutch_group)
-                if remove_from_text:
-                    for match in reversed(matches):
-                        working_text = working_text[:match.start()] + working_text[match.end():]
 
         return accommodation_groups_texts, working_text if remove_from_text else text
 

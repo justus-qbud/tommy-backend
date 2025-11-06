@@ -25,7 +25,7 @@ class SearchFilters(BaseModel):
     )
     age_categories: Optional[Dict[str, int]] = Field(
         None,
-        description="Map of age category IDs to number of people"
+        description="Map of age category IDs to number of people."
     )
     dates: Optional[DateRange] = Field(
         None,
@@ -38,7 +38,7 @@ class ParserAI:
     MODEL_VERSION = "gpt-5-mini"
     SYSTEM_PROMPT = """
         Based on user query, extract filter options. 
-        Besides "dates" (today is '{current_date}'), the following filters are available:
+        Besides "dates" (today (minimum) is '{current_date}'), the following filters are available:
     """
 
     def _get_system_prompt(self, filters: str):

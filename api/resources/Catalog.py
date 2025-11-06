@@ -7,6 +7,7 @@ from datetime import date
 from cerberus import Validator
 from flask import request
 from flask_restful import Resource
+from urllib.parse import urlencode
 
 from api.common.cache import redis_cache
 from api.common.parser.ai import ParserAI
@@ -113,6 +114,8 @@ class CatalogSearch(Resource):
         },
     }
 
+    STOPWORDS_NL = set(json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..\\data\\stopwords-nl.json"))))
+
     @staticmethod
     def _validate_user_query(user_query):
         if len(user_query) < 4 or len(user_query) > 100:
@@ -163,7 +166,30 @@ class CatalogSearch(Resource):
         user_query = self.REGEX_MONTH_PATTERN.sub(get_month, user_query)
         user_query = self.REGEX_CONSECUTIVE_CHARS.sub("", user_query)
         user_query = self.REGEX_DOUBLE_SPACES.sub(" ", user_query)
+
+        # Remove stopwords
+        words = user_query.split()
+        filtered_words = [word for word in words if word not in self.STOPWORDS_NL]
+        user_query = " ".join(filtered_words)
+
         return user_query.strip()
+
+    @staticmethod
+    def build_booking_url(slot: dict, age_categories: dict, arrival_date: str, departure_date: str) -> str:
+        """Build booking URL with query parameters from slot data."""
+        age_category_param = json.dumps([
+            {"id": cat_id, "pax": count}
+            for cat_id, count in age_categories.items()
+        ], separators=(',', ':'))
+
+        params = {
+            "age-category": age_category_param,
+            "arrival-date": arrival_date,
+            "departure-date": departure_date,
+            "accommodation": slot.get("id"),
+        }
+
+        return f"https://demo.prosuco.nl/zoek-en-boek/boeken?{urlencode(params)}"
 
     @staticmethod
     def get_catalog_results_from_tommy(
@@ -183,13 +209,15 @@ class CatalogSearch(Resource):
             accommodation_groups=",".join([str(x) for x in accommodation_groups]) if accommodation_groups else None,
             amenities=amenities
         )
+        for slot in availability:
+            slot["url"] = CatalogSearch.build_booking_url(slot, age_categories, arrival_date, departure_date)
         return availability or []
 
     @staticmethod
     def get_accommodations_from_tommy() -> dict:
         client = TommyClient(os.getenv("TOMMY_API_KEY_TEMP"))
         tommy_accommodations = client.get_accommodations()
-        accommodations = Catalog.extract_language_from_metadata_item(tommy_accommodations, ["name", "description", "url"])
+        accommodations = Catalog.extract_language_from_metadata_item(tommy_accommodations, ["name", "description"])
         for accommodation in tommy_accommodations:
             accommodations[accommodation.get("id")]["image_url"] = accommodation.get("images" , [{}])[0].get("url")
         return accommodations or dict()
