@@ -76,7 +76,7 @@ class CatalogSearch(Resource):
     REGEX_MONTH_PATTERN = re.compile(
         r"\b(?P<jan>jan(uar[iy]?|vier))|(?P<feb>feb(ruar[iy]?|braio))|(?P<mar>maa?r(zo?|s|t)|märz)|(?P<apr>apr(il[e]?))|(?P<may>ma[iy]|maggio|mei)|(?P<jun>jun[ei]|giu[gn]no?)|(?P<jul>jul(y|i[oa]?))|(?P<aug>au?g(ust(us|o)?)?|août|aout)|(?P<sep>sep(tember|tembre)?)|(?P<oct>o[ck]t(ober|obre)?)|(?P<nov>nov(ember|embre)?)|(?P<dec>de[cz](ember|embre|icembre)?)\b"
     )
-    REGEX_RANGE_WORDS = re.compile(r"\s+(tot?|t/?m|thr(ough|u)|(un)?till?|bis)\s+")
+    REGEX_RANGE_WORDS = re.compile(r"\s+(tot?(\s*en\s*met)|t/?m|thr(ough|u)|(un)?till?|bis)\s+")
 
     SCHEMA_USER_PARSE = {
         "dates": {
