@@ -57,7 +57,7 @@ class TommyClient:
                          departure_date: str,
                          age_categories: dict | None,
                          accommodation_groups: str | None = None,
-                         amenities: dict | None = None) -> dict | None:
+                         amenities: dict | None = None) -> list | None:
         def expand_date_ranges(params):
             fmt = "%Y-%m-%d"
             for key in ["date-from", "date-till"]:
@@ -95,7 +95,7 @@ class TommyClient:
                 pass
 
         accommodations = self._get_from_tommy("widget/search", params)
-        if accommodations:
+        if isinstance(accommodations, list):
             return accommodations
 
         return None
