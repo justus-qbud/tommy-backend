@@ -51,7 +51,7 @@ class ParserRules:
 class ParserDates:
 
     # Step 1: Simple date range detection
-    RANGE_PATTERN = r"(\d+(?:\s+\w+)*)\s*(?:tot|t/m|to|through|thru|until|till|bis|[-–—])\s*(\d+(?:\s+\w+)?(?:\s+\d{4})?)"
+    RANGE_PATTERN = r"(\d+(?:\s+\w+)*)\s*(?:[-–—])\s*(\d+(?:\s+\w+)?(?:\s+\d{4})?)"
 
     # Step 2: Date component patterns
     DATE_PATTERNS = {

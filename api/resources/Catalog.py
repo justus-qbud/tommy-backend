@@ -76,6 +76,7 @@ class CatalogSearch(Resource):
     REGEX_MONTH_PATTERN = re.compile(
         r"\b(?P<jan>jan(uar[iy]?|vier))|(?P<feb>feb(ruar[iy]?|braio))|(?P<mar>maa?r(zo?|s|t)|märz)|(?P<apr>apr(il[e]?))|(?P<may>ma[iy]|maggio|mei)|(?P<jun>jun[ei]|giu[gn]no?)|(?P<jul>jul(y|i[oa]?))|(?P<aug>au?g(ust(us|o)?)?|août|aout)|(?P<sep>sep(tember|tembre)?)|(?P<oct>o[ck]t(ober|obre)?)|(?P<nov>nov(ember|embre)?)|(?P<dec>de[cz](ember|embre|icembre)?)\b"
     )
+    REGEX_RANGE_WORDS = re.compile(r"\s+(tot?|t/?m|thr(ough|u)|(un)?till?|bis)\s+")
 
     SCHEMA_USER_PARSE = {
         "dates": {
@@ -141,6 +142,9 @@ class CatalogSearch(Resource):
             ascii_text = ''.join(c for c in normalized if unicodedata.category(c) != "Mn")
             return ascii_text
 
+        def replace_range_words(text):
+            return self.REGEX_RANGE_WORDS.sub(" - ", text)
+
         def replace_number_words(text):
             """Replace number words (1-10) with digits in English, German, and Dutch."""
 
@@ -162,6 +166,7 @@ class CatalogSearch(Resource):
         user_query = user_query.lower().strip()
         user_query = remove_accents(user_query)
         user_query = replace_number_words(user_query)
+        user_query = replace_range_words(user_query)
         user_query = self.REGEX_INVALID_CHARS.sub("", user_query)
         user_query = self.REGEX_MONTH_PATTERN.sub(get_month, user_query)
         user_query = self.REGEX_CONSECUTIVE_CHARS.sub("", user_query)
