@@ -259,10 +259,10 @@ class CatalogSearch(Resource):
 
     def get(self, catalog_id):
         # validate, sanitize, and re-validate user query
-        user_query = request.args.get("q")
-        if not Catalog.validate_catalog_id(catalog_id) or not self._validate_user_query(user_query):
+        original_user_query = request.args.get("q")
+        if not Catalog.validate_catalog_id(catalog_id) or not self._validate_user_query(original_user_query):
             return TommyErrors.bad_request()
-        user_query = self._sanitize_user_query(user_query)
+        user_query = self._sanitize_user_query(original_user_query)
         if not self._validate_user_query(user_query):
             return TommyErrors.bad_request()
 
@@ -297,8 +297,13 @@ class CatalogSearch(Resource):
                 parse.get("accommodation_groups"),
                 parse.get("amenities")
             )
-            for result in results:
-                if result.get("id") in accommodations:
-                    result.update(accommodations[result.get("id")])
+            if results:
+                for result in results:
+                    if result.get("id") in accommodations:
+                        result.update(accommodations[result.get("id")])
+
+                # sort results based on occurrence
+                query_words = original_user_query.lower().split()
+                results.sort(key=lambda r: sum(word in r.get("name", "").lower() for word in query_words), reverse=True)
 
         return TommyResponse.success(data={"parse": parse, "results": results})
