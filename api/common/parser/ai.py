@@ -21,7 +21,7 @@ class SearchFilters(BaseModel):
     amenities: Optional[list[str]] = Field(
         None,
         alias="amenities",
-        description="List of amenity IDs"
+        description="List of amenity IDs, only use if mentioned in user query."
     )
     age_categories: Optional[Dict[str, int]] = Field(
         None,

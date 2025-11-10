@@ -54,6 +54,13 @@ class Catalog(Resource):
         if tommy_metadata:
             for key in tommy_metadata:
                 catalog_filters[key] = self.extract_language_from_metadata_item_name(tommy_metadata[key])
+                if key == "amenities":
+                    # TODO: remove ad hoc
+                    for amenity_key in list(catalog_filters[key].keys()):
+                        if catalog_filters[key][amenity_key] == "Aan het water":
+                            catalog_filters[key][amenity_key] = "Gelegen naast een meer of zee"
+                        elif catalog_filters[key][amenity_key] == "Aantal slaapkamers":
+                            del catalog_filters[key][amenity_key]
         return catalog_filters
 
     def get(self, catalog_id):
@@ -221,8 +228,9 @@ class CatalogSearch(Resource):
             accommodation_groups=",".join([str(x) for x in accommodation_groups]) if accommodation_groups else None,
             amenities=amenities
         )
-        for slot in availability:
-            slot["url"] = CatalogSearch.build_booking_url(slot, age_categories, arrival_date, departure_date)
+        if availability:
+            for slot in availability:
+                slot["url"] = CatalogSearch.build_booking_url(slot, age_categories, arrival_date, departure_date)
         return availability or []
 
     @staticmethod
@@ -266,7 +274,7 @@ class CatalogSearch(Resource):
         for key in list(parse.keys()):
             if parse[key] is None:
                 del parse[key]
-            if isinstance(parse[key], list):
+            elif isinstance(parse[key], list):
                 parse[key] = [int(x) if isinstance(x, str) and x.isdigit() else x for x in parse[key]]
 
         return parse
@@ -317,7 +325,13 @@ class CatalogSearch(Resource):
                         result.update(accommodations[result.get("id")])
 
                 # sort results based on occurrence
-                query_words = original_user_query.lower().split()
-                results.sort(key=lambda r: sum(word in r.get("name", "").lower() for word in query_words), reverse=True)
+                query_words = original_user_query.split()
+                results.sort(
+                    key=lambda r: sum(
+                        word in unicodedata.normalize('NFD', r.get("name", "").lower()).encode('ascii','ignore').decode('utf-8')
+                        for word in query_words
+                    ),
+                    reverse=True
+                )
 
         return TommyResponse.success(data={"parse": parse, "results": results})
