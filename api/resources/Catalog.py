@@ -101,6 +101,13 @@ class CatalogSearch(Resource):
                 "type": "integer"
             }
         },
+        "amenities": {
+            "type": "list",
+            "required": False,
+            "schema": {
+                "type": "integer"
+            }
+        },
         "age_categories": {
             "type": "dict",
             "required": False,
@@ -254,6 +261,8 @@ class CatalogSearch(Resource):
         for key in list(parse.keys()):
             if parse[key] is None:
                 del parse[key]
+            if isinstance(parse[key], list):
+                parse[key] = [int(x) if isinstance(x, str) and x.isdigit() else x for x in parse[key]]
 
         return parse
 

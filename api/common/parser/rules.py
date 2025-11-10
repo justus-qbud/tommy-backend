@@ -201,7 +201,7 @@ class ParserDates:
                     start_dt = start_dt.replace(year=start_dt.year + 1)
                     start_date = start_dt.strftime("%Y-%m-%d")
 
-                end_dt = start_dt + timedelta(days=duration_days - 1)
+                end_dt = start_dt + timedelta(days=duration_days)
                 end_date = end_dt.strftime("%Y-%m-%d")
 
                 if remove_from_text:
