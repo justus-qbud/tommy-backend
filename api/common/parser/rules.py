@@ -223,10 +223,8 @@ class ParserDates:
 class ParserAccommodationGroups:
     # Comprehensive regex patterns for accommodation groups
     PATTERNS = {
-        "kamperen": r"\b(kampe(ren|erplek)|camp(site|ground|e(r|n)|ing(platz)?)|zeltplatz)\b",
-        "huren": r"\b(huren|(vakantie)?huis|huuraccommodatie|rent|rental|cottage|holiday\s*home|mieten|ferienwohnung|ferienhaus|chalet|bungalow|glampingtent)\b",
-        "accommodaties": r"\b(accommodaties|accommodatie|verblijven|accommodations?|lodgings?|unterkünfte|unterkunft|bleibe)\b",
-        "toeristenplaatsen": r"\b(toeristenplaatsen|toeristenplaats|tourist\s*spots?|touristenplätze|touristenplatz)\b"
+        "kamperen": r"(kampe(r?e?n?|erplek)|[ck]amp(site|ground|e[rn]|ing(platz)?)|zeltplatz|\b[ck]aravan|tent|vouwwagen)",
+        "huren": r"(huren|(vakantie)?huis(je)?|huuraccommodatie|rent(al)?|cottage|villa|holiday\s*home|safaritent|stacaravan|mieten|ferienwohnung|ferienhaus|chalet?|(vakantie)?bungalow|glamping(tent)?)",
     }
 
     def parse(self, text, remove_from_text=True) -> tuple[list[str], str]:
@@ -238,8 +236,8 @@ class ParserAccommodationGroups:
             for dutch_group, pattern in self.PATTERNS.items()
         }
 
-        for dutch_group, pattern in compiled_patterns.items():
-            matches = list(pattern.finditer(working_text))
+        for dutch_group in ["huren", "kamperen"]:
+            matches = list(compiled_patterns[dutch_group].finditer(working_text))
 
             if matches:
                 accommodation_groups_texts.append(dutch_group)

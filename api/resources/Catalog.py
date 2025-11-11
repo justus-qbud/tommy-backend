@@ -81,7 +81,7 @@ class CatalogSearch(Resource):
     REGEX_DOUBLE_SPACES = re.compile(r"\s{2,}")
     REGEX_INVALID_CHARS = re.compile(r"[^a-z\d.\-/\s]+")
     REGEX_MONTH_PATTERN = re.compile(
-        r"\b(?P<jan>jan(uar[iy]?|vier))|(?P<feb>feb(ruar[iy]?|braio))|(?P<mar>maa?r(zo?|s|t)|märz)|(?P<apr>apr(il[e]?))|(?P<may>ma[iy]|maggio|mei)|(?P<jun>jun[ei]|giu[gn]no?)|(?P<jul>jul(y|i[oa]?))|(?P<aug>au?g(ust(us|o)?)?|août|aout)|(?P<sep>sep(tember|tembre)?)|(?P<oct>o[ck]t(ober|obre)?)|(?P<nov>nov(ember|embre)?)|(?P<dec>de[cz](ember|embre|icembre)?)\b"
+        r"\b(?P<jan>jan(uar[iy]?|vier))|(?P<feb>feb(ruar[iy]?|braio))|(?P<mar>maa?r(zo?|s|t)|märz)|(?P<apr>apr(il[e]?))|(?P<may>ma[iy]|maggio|mei)|(?P<jun>jun[ei]|giu[gn]no?)|(?P<jul>jul(y|i[oa]?))|(?P<aug>aug(ust(us|o)?)?|août|aout)|(?P<sep>sep(tember|tembre)?)|(?P<oct>o[ck]t(ober|obre)?)|(?P<nov>nov(ember|embre)?)|(?P<dec>de[cz](ember|embre|icembre)?)\b"
     )
     REGEX_RANGE_WORDS = re.compile(r"\s+(tot?(\s*en\s*met)|t/?m|thr(ough|u)|(un)?till?|bis)\s+")
 
@@ -311,7 +311,7 @@ class CatalogSearch(Resource):
 
         # search results
         results = None
-        if not parse.get("error"):
+        if not parse.get("error") and parse.get("dates"):
             results = self.get_catalog_results_from_tommy(
                 parse.get("dates", {}).get("start"),
                 parse.get("dates", {}).get("end"),

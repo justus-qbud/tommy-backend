@@ -15,8 +15,12 @@ class DateRange(BaseModel):
 class SearchFilters(BaseModel):
     accommodation_groups: Optional[list[str]] = Field(
         None,
-        alias="accommodation-groups",
-        description="List of accommodation group IDs"
+        alias="accommodation_groups",
+        description="""
+            List of accommodation group IDs. 
+            'huren' includes villa, chalet, glamping, safaritent, stacaravan etc.
+            'kamperen' includes tent, camping, kamperen, caravan, camper etc.
+        """
     )
     amenities: Optional[list[str]] = Field(
         None,
@@ -25,11 +29,14 @@ class SearchFilters(BaseModel):
     )
     age_categories: Optional[Dict[str, int]] = Field(
         None,
-        description="Map of age category IDs to number of people."
+        description="Map of age category IDs to number of people. Assume 'persons' are adults."
     )
     dates: Optional[DateRange] = Field(
         None,
-        description="Date range. Infer from user query if necessary. A weekend runs from Friday to Monday."
+        description="""
+            Date range. Infer from user query if necessary. 
+            Weekend runs Friday to Monday, Easter 3-6 apr 2026, Ascension 14-18 may 2026, Pentecost 22-25 may 2026.
+        """
     )
 
 
